@@ -44,5 +44,5 @@ jobs:
       - name: Build y Push
         run: |
           IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ inputs.image-name }}"
-          docker build --parametro-inexistente
+          docker build -t "$IMAGE:${{ inputs.image-tag }}" -t "$IMAGE:latest" .
           docker push -a "$IMAGE"
