@@ -1,0 +1,51 @@
+name: Desplegar API en Kubernetes con Rollback
+
+on:
+  workflow_call:
+    inputs:
+      deployment-name:
+        required: true
+        type: string
+      manifest-path:
+        required: true
+        type: string
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      AWS_SESSION_TOKEN:
+        required: true
+
+jobs:
+  deploy-k8s:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repositorio cliente
+        uses: actions/checkout@v4
+
+      - name: Configurar credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Configurar kubectl con EKS
+        run: |
+          aws eks update-kubeconfig --name duoc-eks-cluster-cli --region us-east-1
+
+      - name: Desplegar API
+        id: deploy-step
+        run: |
+          kubectl apply -f ${{ inputs.manifest-path }}
+          kubectl rollout status deployment/${{ inputs.deployment-name }} --timeout=3m
+
+      - name: Rollback automático
+        if: failure()
+        run: |
+          echo "Rollout falló. Ejecutando rollback..."
+          kubectl rollout undo deployment/${{ inputs.deployment-name }}
+          kubectl rollout status deployment/${{ inputs.deployment-name }} --timeout=3m
